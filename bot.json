@@ -1,0 +1,227 @@
+[
+    {
+        "id": "cc19c3f76b357137",
+        "type": "debug",
+        "z": "6dc97658461f8a4b",
+        "name": "debug 15",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1020,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "c61ce5e82212dfb8",
+        "type": "switch",
+        "z": "6dc97658461f8a4b",
+        "name": "",
+        "property": "channel.id",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "<<ID_SALON_DISCORD>>",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 490,
+        "y": 180,
+        "wires": [
+            [
+                "92c5d4e5a75cbe03",
+                "06792b1cee52f3cb"
+            ]
+        ]
+    },
+    {
+        "id": "92c5d4e5a75cbe03",
+        "type": "function",
+        "z": "6dc97658461f8a4b",
+        "name": "SI le message commence par",
+        "func": "if(msg.payload.startsWith(\"<<@ID_BOT_DISCORD>>\")) {\n   node.send(msg);\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 180,
+        "wires": [
+            [
+                "cc19c3f76b357137",
+                "f8e90f53ff59cf92"
+            ]
+        ]
+    },
+    {
+        "id": "06792b1cee52f3cb",
+        "type": "debug",
+        "z": "6dc97658461f8a4b",
+        "name": "debug 17",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 660,
+        "y": 120,
+        "wires": []
+    },
+    {
+        "id": "78fee3d491aa9e38",
+        "type": "discordMessage",
+        "z": "6dc97658461f8a4b",
+        "name": "",
+        "channelIdFilter": "<<ID_SALON_DISCORD>>",
+        "token": "",
+        "x": 300,
+        "y": 180,
+        "wires": [
+            [
+                "c61ce5e82212dfb8"
+            ]
+        ]
+    },
+    {
+        "id": "6350c26e84a036ba",
+        "type": "http request",
+        "z": "6dc97658461f8a4b",
+        "name": "",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "body",
+        "url": "https://api.openai.com/v1/completions",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "Content-Type",
+                "keyValue": "",
+                "valueType": "other",
+                "valueValue": "application/json"
+            },
+            {
+                "keyType": "Authorization",
+                "keyValue": "",
+                "valueType": "other",
+                "valueValue": "Bearer <<CLE_API_OPENAI>>"
+            }
+        ],
+        "x": 730,
+        "y": 360,
+        "wires": [
+            [
+                "934cdcc34559113b",
+                "092d12be449628c5"
+            ]
+        ]
+    },
+    {
+        "id": "934cdcc34559113b",
+        "type": "debug",
+        "z": "6dc97658461f8a4b",
+        "name": "debug 22",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1020,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "69ca86d16c2f90cb",
+        "type": "function",
+        "z": "6dc97658461f8a4b",
+        "name": "Prépare la requetteà OpenAI",
+        "func": "tmp = {};\ntmp.payload = {};\ntmp.payload.model = \"text-davinci-003\";\ntmp.payload.prompt = msg.payload;\ntmp.payload.max_tokens = 600;\ntmp.payload.temperature = 0;\nreturn tmp;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 300,
+        "wires": [
+            [
+                "6350c26e84a036ba"
+            ]
+        ]
+    },
+    {
+        "id": "092d12be449628c5",
+        "type": "function",
+        "z": "6dc97658461f8a4b",
+        "name": "Prépare la réponse",
+        "func": "tmp = {};\ntmp.action = \"create\";\n\nif(msg.payload.choices[0].text.length > 1900) {\n    reponse = msg.payload.choices[0].text.substr(0, 1900);    \n    reponse += \"...\";\n} else {\n    reponse = msg.payload.choices[0].text;\n}\n\n\n\ntmp.payload = \"```\" + reponse + \"```\\n\";\n\nif(msg.payload.choices[0].text.length > 1900) {\n    tmp.payload += \"La réponse a été tronquée. \\n\\n\";\n}\n\ntmp.payload += \"Cout de la question : \";\ntmp.payload += \"(\" + msg.payload.usage.prompt_tokens + \" + \" + msg.payload.usage.completion_tokens + \" tokens) \";\n\n// Nombre de token sur le quel calculer\nnbToken = msg.payload.usage.total_tokens;\n\n// Prix pour 1k token;\ntarif = 0.0200;\ntrixPourToken = 1000;\n\n// Multiplie par 10000 pour éviter les erreurs mémoire d'arrongie\ntarif = tarif * 10000;\ntotal = nbToken * tarif;\ntotal = total / (10000 * trixPourToken)\n\n\ntmp.payload += total + \"$\";\nreturn tmp;\n\n",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [
+            {
+                "var": "discordjs",
+                "module": "discord.js"
+            }
+        ],
+        "x": 730,
+        "y": 420,
+        "wires": [
+            [
+                "9e5fb9b2bf9d34d4"
+            ]
+        ]
+    },
+    {
+        "id": "9e5fb9b2bf9d34d4",
+        "type": "discordMessageManager",
+        "z": "6dc97658461f8a4b",
+        "name": "",
+        "channel": "<<ID_SALON_DISCORD>>",
+        "token": "",
+        "x": 730,
+        "y": 480,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f8e90f53ff59cf92",
+        "type": "function",
+        "z": "6dc97658461f8a4b",
+        "name": "Supprime le pseudo du message",
+        "func": "msg.payload = msg.payload.replace('<<@ID_BOT_DISCORD>> ', ''); \nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 740,
+        "y": 240,
+        "wires": [
+            [
+                "69ca86d16c2f90cb"
+            ]
+        ]
+    }
+]
